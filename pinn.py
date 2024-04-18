@@ -52,13 +52,8 @@ class PINN:
         self.training_set = self.training_set.reset_index(drop=True)
         self.df = pd.concat((self.training_set, self.gradient_t), axis=1)
         self.gradient_tt.columns = ["grad_tt"]
-        self.pd.concat((self.df, self.gradient_tt), axis=1)
+        pd.concat((self.df, self.gradient_tt), axis=1)
         self.df.columns = ["y_t", "grad_t", "grad_tt"]
-
-    # def plot_inital(self):
-    #     self.iloc[:, 0].plot()
-    #     self.L = self.df.iloc[:, 2] - self.mu * (self.df.iloc[:, 1] - (self.df.iloc[:, 0]**2 * self.df.iloc[:, 1]) - (1/self.mu) * self.df.iloc[:, 0])
-    #     self.L.plot()
 
     def convert(self, offset=30, in_val=35, out_val=10):
         self.offset = offset
