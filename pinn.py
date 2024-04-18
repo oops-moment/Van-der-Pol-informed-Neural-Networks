@@ -44,9 +44,9 @@ class PINN:
         self.gradient_tt = self.gradient_tt.reset_index(drop=True)
         self.mu = mu
 
-    def load_data(self, filename, coloumn_number):
+    def load_data(self, filename, columnNo):
         self.data = pd.read_csv(filename)
-        self.training_set = self.data.iloc[:, coloumn_number]
+        self.training_set = self.data.iloc[:, columnNo]
         self.test = self.training_set.tail(10)
         self.training_set = self.training_set.iloc[:-10]
         self.training_set = self.training_set.reset_index(drop=True)
@@ -99,9 +99,7 @@ class PINN:
             squared_difference,
             axis=-1) + 0.2 * tf.reduce_mean(squared_difference3, axis=-1)
 
-    def shm_loss_fn(self, y_true, y_pred):
-        mass = 1.0  # kg
-        spring_constant = 4.0  # N/m
+    def shm_loss_fn(self, y_true, y_pred, spring_constant=4.0, mass=1.0):
         omega = np.sqrt(spring_constant / mass)
 
         squared_difference = tf.square(y_true[:, 0] - y_pred[:, 0])
