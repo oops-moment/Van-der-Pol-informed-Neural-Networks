@@ -52,7 +52,7 @@ class PINN:
         self.training_set = self.training_set.reset_index(drop=True)
         self.df = pd.concat((self.training_set, self.gradient_t), axis=1)
         self.gradient_tt.columns = ["grad_tt"]
-        pd.concat((self.df, self.gradient_tt), axis=1)
+        self.df = pd.concat((self.df, self.gradient_tt), axis=1)
         self.df.columns = ["y_t", "grad_t", "grad_tt"]
 
     def convert(self, offset=30, in_val=35, out_val=10):
