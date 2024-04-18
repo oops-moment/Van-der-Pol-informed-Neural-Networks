@@ -54,6 +54,7 @@ class PINN:
         self.gradient_tt.columns = ["grad_tt"]
         self.df = pd.concat((self.df, self.gradient_tt), axis=1)
         self.df.columns = ["y_t", "grad_t", "grad_tt"]
+        self.df = self.df.dropna()
 
     def convert(self, offset=30, in_val=35, out_val=10):
         self.offset = offset
@@ -82,14 +83,13 @@ class PINN:
             (self.forecastX.shape[0], 1, self.forecastX.shape[1]))
 
     def vpinn_loss_fn(self, y_true, y_pred):
-        mu = tf.Variable(4, name="mu", trainable=True, dtype=tf.float32)
         squared_difference = tf.square(y_true[:, 0] - y_pred[:, 0])
         #squared_difference2 = tf.square(y_true[:, 2]-y_pred[:, 2])
         #squared_difference1 = tf.square(y_true[:, 1]-y_pred[:, 1])
-        squared_difference3 = tf.square(y_pred[:, 2] - mu *
+        squared_difference3 = tf.square(y_pred[:, 2] - self.mu_var *
                                         (y_pred[:, 1] -
                                          (y_pred[:, 0]**2 * y_pred[:, 1]) -
-                                         (1 / mu) * y_pred[:, 0]))
+                                         (1 / self.mu_var) * y_pred[:, 0]))
         return tf.reduce_mean(
             squared_difference,
             axis=-1) + 0.2 * tf.reduce_mean(squared_difference3, axis=-1)
@@ -121,7 +121,11 @@ class PINN:
                 0.2 * tf.reduce_mean(squared_difference_z, axis=-1)
 
     def train_model(self, type):
-        mu = tf.Variable(4, name="mu", trainable=True, dtype=tf.float32)
+        print(type)
+        self.mu_var = tf.Variable(4,
+                                  name="mu",
+                                  trainable=True,
+                                  dtype=tf.float32)
         splitr = 0.8
 
         self.model = Sequential()
