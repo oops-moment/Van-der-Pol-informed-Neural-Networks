@@ -7,7 +7,8 @@ from keras.models import Sequential
 from keras.layers import Dense
 from keras.layers import LSTM
 import matplotlib.pyplot as plt
-
+from keras.callbacks import EarlyStopping
+from keras import layers
 
 def Supervised(data, n_in=1, n_out=1, dropnan=True):
     n_vars = 1 if type(data) is list else data.shape[1]
@@ -32,9 +33,23 @@ def Supervised(data, n_in=1, n_out=1, dropnan=True):
         agg.dropna(inplace=True)
     return agg
 
+class TransformerBlock(layers.Layer):
+    def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
+        super(TransformerBlock, self).__init__()
+        self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
+        self.ffn = keras.Sequential(
+            [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim),]
+        )
+        self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
+        self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
+
+    def call(self, inputs, training):
+        attn_output = self.att(inputs, inputs)
+        out1 = self.layernorm1(inputs + attn_output)
+        ffn_output = self.ffn(out1)
+        return self.layernorm2(out1 + ffn_output)
 
 class PINN:
-
     def __init__(self, mu, training):
         self.t_diff = 1  # Daily data
         self.gradient_t = (training.diff() / self.t_diff).iloc[1:]  # dx/dt
@@ -50,6 +65,8 @@ class PINN:
         self.test = self.training_set.tail(10)
         self.training_set = self.training_set.iloc[:-10]
         self.training_set = self.training_set.reset_index(drop=True)
+        # Reset index of gradient_t to match training_set
+        # Print the dimensions of training_set and gradient_t for debugging
         self.df = pd.concat((self.training_set, self.gradient_t), axis=1)
         self.gradient_tt.columns = ["grad_tt"]
         self.df = pd.concat((self.df, self.gradient_tt), axis=1)
@@ -120,7 +137,7 @@ class PINN:
         return tf.reduce_mean(squared_difference_x, axis=-1) + \
                 0.2 * tf.reduce_mean(squared_difference_z, axis=-1)
 
-    def train_model(self, type):
+    def train_model(self, type, no_epochs=100):
         print(type)
         self.mu_var = tf.Variable(4,
                                   name="mu",
@@ -138,17 +155,59 @@ class PINN:
             self.model.compile(loss=self.shm_loss_fn, optimizer='adam')
         elif type == "LORENZ":
             self.model.compile(loss=self.lorenz_loss_fn, optimizer='adam')
+
+        # Define Early Stopping callback
+        early_stopping = EarlyStopping(monitor='val_loss', patience=3)
+
         self.history = self.model.fit(
             self.trainX[:int(splitr * self.trainX.shape[0])],
             self.trainy[:int(splitr * self.trainX.shape[0])],
-            epochs=100,
+            epochs=no_epochs,
             batch_size=64,
             validation_data=(
                 self.trainX[int(splitr *
                                 self.trainX.shape[0]):self.trainX.shape[0]],
                 self.trainy[int(splitr *
                                 self.trainX.shape[0]):self.trainX.shape[0]]),
-            shuffle=False)
+            shuffle=False,
+            callbacks=[early_stopping])
+
+    def train_model_transformer(self, type, no_epochs=100):
+        print(type)
+        self.mu_var = tf.Variable(4,
+                                name="mu",
+                                trainable=True,
+                                dtype=tf.float32)
+        splitr = 0.8
+
+        num_heads = 2  # Number of attention heads
+        ff_dim = 32  # Hidden layer size in feed forward network inside transformer
+
+        self.model = Sequential()
+        self.model.add(TransformerBlock(self.trainX.shape[2], num_heads, ff_dim))
+        self.model.add(layers.Dense(30))
+        if type == "VPINN":
+            self.model.compile(loss=self.vpinn_loss_fn, optimizer='adam')
+        elif type == "SHM":
+            self.model.compile(loss=self.shm_loss_fn, optimizer='adam')
+        elif type == "LORENZ":
+            self.model.compile(loss=self.lorenz_loss_fn, optimizer='adam')
+
+        # Define Early Stopping callback
+        early_stopping = EarlyStopping(monitor='val_loss', patience=3)
+
+        self.history = self.model.fit(
+            self.trainX[:int(splitr * self.trainX.shape[0])],
+            self.trainy[:int(splitr * self.trainX.shape[0])],
+            epochs=no_epochs,
+            batch_size=64,
+            validation_data=(
+                self.trainX[int(splitr *
+                                self.trainX.shape[0]):self.trainX.shape[0]],
+                self.trainy[int(splitr *
+                                self.trainX.shape[0]):self.trainX.shape[0]]),
+            shuffle=False,
+            callbacks=[early_stopping])
 
     def evaluate_model(self):
         self.forecast_without_mc = self.forecastX
