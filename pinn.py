@@ -9,6 +9,9 @@ from keras.layers import LSTM
 import matplotlib.pyplot as plt
 from keras.callbacks import EarlyStopping
 from keras import layers
+from keras.models import Sequential
+from keras.layers import Dense, LSTM, Bidirectional
+
 
 def Supervised(data, n_in=1, n_out=1, dropnan=True):
     n_vars = 1 if type(data) is list else data.shape[1]
@@ -33,13 +36,17 @@ def Supervised(data, n_in=1, n_out=1, dropnan=True):
         agg.dropna(inplace=True)
     return agg
 
+
 class TransformerBlock(layers.Layer):
+
     def __init__(self, embed_dim, num_heads, ff_dim, rate=0.1):
         super(TransformerBlock, self).__init__()
-        self.att = layers.MultiHeadAttention(num_heads=num_heads, key_dim=embed_dim)
-        self.ffn = keras.Sequential(
-            [layers.Dense(ff_dim, activation="relu"), layers.Dense(embed_dim),]
-        )
+        self.att = layers.MultiHeadAttention(num_heads=num_heads,
+                                             key_dim=embed_dim)
+        self.ffn = keras.Sequential([
+            layers.Dense(ff_dim, activation="relu"),
+            layers.Dense(embed_dim),
+        ])
         self.layernorm1 = layers.LayerNormalization(epsilon=1e-6)
         self.layernorm2 = layers.LayerNormalization(epsilon=1e-6)
 
@@ -49,7 +56,9 @@ class TransformerBlock(layers.Layer):
         ffn_output = self.ffn(out1)
         return self.layernorm2(out1 + ffn_output)
 
+
 class PINN:
+
     def __init__(self, mu, training):
         self.t_diff = 1  # Daily data
         self.gradient_t = (training.diff() / self.t_diff).iloc[1:]  # dx/dt
@@ -172,20 +181,20 @@ class PINN:
             shuffle=False,
             callbacks=[early_stopping])
 
-    def train_model_transformer(self, type, no_epochs=100):
+    def train_model_bidirectional(self, type, no_epochs=100):
         print(type)
         self.mu_var = tf.Variable(4,
-                                name="mu",
-                                trainable=True,
-                                dtype=tf.float32)
+                                  name="mu",
+                                  trainable=True,
+                                  dtype=tf.float32)
         splitr = 0.8
 
-        num_heads = 2  # Number of attention heads
-        ff_dim = 32  # Hidden layer size in feed forward network inside transformer
-
         self.model = Sequential()
-        self.model.add(TransformerBlock(self.trainX.shape[2], num_heads, ff_dim))
-        self.model.add(layers.Dense(30))
+        self.model.add(
+            Bidirectional(LSTM(50),
+                          input_shape=(self.trainX.shape[1],
+                                       self.trainX.shape[2])))
+        self.model.add(Dense(30))
         if type == "VPINN":
             self.model.compile(loss=self.vpinn_loss_fn, optimizer='adam')
         elif type == "SHM":
