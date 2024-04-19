@@ -7,10 +7,7 @@ from keras.models import Sequential
 from keras.layers import Dense, LSTM, Bidirectional
 import matplotlib.pyplot as plt
 from keras.callbacks import EarlyStopping
-
-# Your code follows...
-
-
+S
 def Supervised(data, n_in=1, n_out=1, dropnan=True):
     n_vars = 1 if type(data) is list else data.shape[1]
     df = pd.DataFrame(data)
