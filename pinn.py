@@ -163,7 +163,7 @@ class PINN:
         self.true_forecast = self.forecasty[:, 0:self.offset - 1:3]
         return mean_absolute_error(self.final_forecast, self.true_forecast)
 
-    def plot_forecasts(self, final_forecast, true_forecast):
+    def plot_forecasts(self, final_forecast, true_forecast, name=0):
         # Get the length of the prediction
         prediction_length = final_forecast.shape[1]
 
@@ -184,6 +184,11 @@ class PINN:
         plt.xlabel('Timestamp')
         plt.ylabel('Wind Speed')
         plt.legend()
+
+        if name == 0:
+            plt.savefig(name + ".png")
+        else:
+            print("Plot will not be printed")
 
         # Show the plot
         plt.show()
