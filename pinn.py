@@ -253,10 +253,10 @@ class PINN:
         plt.ylabel('Wind Speed')
         plt.legend()
 
-        if name == 0:
-            plt.savefig(name + ".png")
-        else:
-            print("Plot will not be printed")
+        # if name == 0:
+        #     plt.savefig(name + ".png")
+        # else:
+        #     print("Plot will not be printed")
 
         # Show the plot
         plt.show()
